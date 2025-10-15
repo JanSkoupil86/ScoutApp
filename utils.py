@@ -140,10 +140,11 @@ def add_position_bucket(df: pd.DataFrame, main_pos_col: str) -> pd.DataFrame:
 
 def filter_sidebar(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
     """
-    Build a sidebar filter UI like Footverse: league, team, nationality, position, age, minutes.
+    Build a sidebar filter UI like Footverse: league, team, nationality, position, age, minutes, and player name.
     Returns (filtered_df, selections_dict).
     """
     # Identify columns
+    name_col = _find_col(df, ["name", "player", "player name", "full name"])
     league_col = _find_col(df, ["league", "competition", "tournament", "division"])
     team_col = _find_col(df, ["team", "club", "squad"])
     nat_col = _find_col(df, ["nationality", "country", "citizenship"])
@@ -156,7 +157,9 @@ def filter_sidebar(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
 
     df_age, age_col = _ensure_age(df)
 
+    # --------------------------------------------------------
     st.sidebar.markdown("### 🎯 Refine Your Search")
+    # --------------------------------------------------------
 
     # League filter
     if league_col:
@@ -203,6 +206,18 @@ def filter_sidebar(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
         mmax = 1000
     min_minutes = st.sidebar.slider("⏳ Filter by Minimum Minutes Played", 0, mmax, 0)
 
+    # --------------------------------------------------------
+    # Player name selector (depends on league filter)
+    # --------------------------------------------------------
+    if name_col:
+        temp = df.copy()
+        if league_col and sel_leagues:
+            temp = temp[temp[league_col].astype(str).isin(sel_leagues)]
+        players = sorted([x for x in temp[name_col].dropna().astype(str).unique() if x != ""])
+        sel_players = st.sidebar.multiselect("👤 Filter by Player Name", players, placeholder="Select players")
+    else:
+        sel_players = []
+
     # Apply filters
     filtered = df_age.copy()
 
@@ -215,6 +230,9 @@ def filter_sidebar(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
     if nat_col and sel_nats:
         filtered = filtered[filtered[nat_col].astype(str).isin(sel_nats)]
 
+    if name_col and sel_players:
+        filtered = filtered[filtered[name_col].astype(str).isin(sel_players)]
+
     filtered = add_position_bucket(filtered, pos_col)
     if sel_buckets:
         filtered = filtered[filtered["__bucket__"].isin(sel_buckets)]
@@ -226,6 +244,7 @@ def filter_sidebar(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
         filtered = filtered[filtered[minutes_col] >= min_minutes]
 
     selections = {
+        "name_col": name_col,
         "league_col": league_col,
         "team_col": team_col,
         "nat_col": nat_col,
@@ -235,6 +254,7 @@ def filter_sidebar(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
         "leagues": sel_leagues,
         "teams": sel_teams,
         "nationalities": sel_nats,
+        "players": sel_players,
         "buckets": sel_buckets,
         "age_range": age_range,
         "min_minutes": min_minutes,
