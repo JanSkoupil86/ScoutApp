@@ -1,38 +1,23 @@
 # Home.py
 import streamlit as st
-from utils import sidebar_data_loader, get_df
+from utils import sidebar_data_loader, get_df, filter_sidebar
 
 st.set_page_config(page_title="Footverse", page_icon="⚽", layout="wide")
 
-try:
-    with open("assets/styles.css") as f:
-        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-except Exception:
-    pass
-
+# 1) Keep the CSV uploader in the sidebar
 sidebar_data_loader()
 
-st.title("🚀 Welcome to Footverse!")
-st.markdown("""
-Football isn’t just a game—it's **numbers, patterns, and insights**.  
-**Footverse** turns raw CSV data into an interactive scouting & analytics workspace.
-""")
+st.title("📊 Stats / Screener (demo)")
 
-st.divider()
-st.header("🔍 What You Can Do")
-st.markdown("""
-- 📊 **Stats Dashboard** — Explore distributions and grouped summaries.
-- ⚖️ **Player Comparison** — Side-by-side metrics & radar charts.
-- 🕵️ **Player Scout Report** — Single player profile with notes.
-- 🧬 **Player Clone** — Find similar players via cosine similarity.
-- 🛠️ **Help** — Data tips and next steps.
-""")
-
+# 2) Get the uploaded dataframe
 df = get_df()
-if df is not None:
-    st.subheader("Quick Preview")
-    st.caption("First 30 rows · Scroll for more")
-    st.dataframe(df.head(30), use_container_width=True)
-else:
+if df is None:
     st.info("Upload a CSV from the sidebar to begin.")
+    st.stop()
 
+# 3) >>> THIS draws the 'Refine Your Search' sidebar <<<
+filtered_df, picks = filter_sidebar(df)
+
+# 4) Show results on the main area
+st.success(f"{len(filtered_df):,} rows match your filters.")
+st.dataframe(filtered_df.head(30), use_container_width=True)
