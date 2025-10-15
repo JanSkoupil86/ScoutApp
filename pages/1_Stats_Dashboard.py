@@ -1,45 +1,33 @@
+# pages/1_📊_Stats_Dashboard.py
 import streamlit as st
 import plotly.express as px
-from utils import sidebar_data_loader, get_df, numeric_columns, text_columns
+from utils import sidebar_data_loader, get_df, filter_sidebar
 
-st.set_page_config(page_title="Stats Dashboard", layout="wide")
+st.set_page_config(page_title="Stats Dashboard", page_icon="📊", layout="wide")
+
+# 1️⃣ CSV uploader (persistent)
 sidebar_data_loader()
 
-st.title("📊 Stats Dashboard")
-
+# 2️⃣ Load dataset
 df = get_df()
 if df is None:
-    st.info("Upload a CSV from the sidebar to explore stats.")
+    st.info("Upload a CSV to begin.")
     st.stop()
 
-num_cols = numeric_columns(df)
-txt_cols = text_columns(df)
+# 3️⃣ Global filters (shared across all pages)
+filtered_df, picks = filter_sidebar(df)
 
-right, left = st.columns([1, 2])
-with right:
-    group = st.selectbox("Group by (optional)", ["— none —"] + txt_cols)
-    metric = st.selectbox("Metric", num_cols or df.columns.tolist())
-    chart = st.radio("Chart", ["Bar", "Histogram", "Box"], horizontal=True)
+# 4️⃣ Example plot
+st.title("📊 Stats Dashboard")
+st.write(f"Filtered dataset: {len(filtered_df):,} rows")
 
-with left:
-    if group != "— none —":
-        agg = df.groupby(group, dropna=False)[metric].mean(numeric_only=True).reset_index()
-        if chart == "Bar":
-            fig = px.bar(agg.sort_values(metric, ascending=False), x=group, y=metric)
-        elif chart == "Histogram":
-            fig = px.histogram(df, x=metric, color=group, nbins=30, opacity=0.6, barmode="overlay")
-        else:
-            fig = px.box(df, x=group, y=metric)
+metric = st.selectbox("Select metric to visualize", [c for c in filtered_df.columns if filtered_df[c].dtype != 'object'])
+group_col = st.selectbox("Group by (optional)", [None] + list(filtered_df.columns))
+
+if metric:
+    if group_col:
+        fig = px.bar(filtered_df.groupby(group_col)[metric].mean().reset_index(),
+                     x=group_col, y=metric, title=f"{metric} by {group_col}")
     else:
-        if chart == "Bar":
-            label_col = txt_cols[0] if txt_cols else None
-            tmp = df.nlargest(20, metric, keep="all") if metric in df.columns else df.head(20)
-            fig = px.bar(tmp, x=metric if metric in df.columns else tmp.columns[0],
-                         y=label_col if label_col else tmp.index, orientation="h")
-        elif chart == "Histogram":
-            fig = px.histogram(df, x=metric if metric in df.columns else df.columns[0], nbins=30)
-        else:
-            fig = px.box(df, y=metric if metric in df.columns else df.columns[0])
-
+        fig = px.histogram(filtered_df, x=metric, nbins=40, title=f"Distribution of {metric}")
     st.plotly_chart(fig, use_container_width=True)
-
