@@ -1,1 +1,5 @@
-
+section[data-testid="stSidebar"] {
+  background: #f7f9fb;
+  border-right: 1px solid #e8edf3;
+}
+h1, h2, h3 { font-weight: 700; }
